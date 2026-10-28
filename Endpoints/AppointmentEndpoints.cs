@@ -58,11 +58,12 @@ public static class AppointmentEndpoints
             await BookingLock.WaitAsync();
             try
             {
-                await AssertSlot(db, input.Date, input.Time, id);
+                // Se conserva la duración que tenía la cita.
+                var cur = await db.Appointments.FindAsync(id) ?? throw ApiError.NotFound("Cita no encontrada.");
+                var dur = cur.EndTime is { } end && Scheduling.IsHhmm(end) ? Scheduling.Minutes(end) - Scheduling.Minutes(cur.Time) : 30;
+                await AssertSlot(db, input.Date, input.Time, id, dur);
                 return await Patch(db, me, id, a =>
                 {
-                    // Se conserva la duración que tenía la cita.
-                    var dur = a.EndTime is { } end && Scheduling.IsHhmm(end) ? Scheduling.Minutes(end) - Scheduling.Minutes(a.Time) : 30;
                     a.Date = input.Date; a.Time = input.Time; a.RescheduleCount++;
                     a.EndTime = Scheduling.EndOf(input.Time, Math.Max(dur, 5));
                     if (!me.IsAdmin()) a.Status = "pending";
@@ -101,11 +102,13 @@ public static class AppointmentEndpoints
         await db.Appointments.Where(a => a.Date == date && a.Id != excludeId && !Scheduling.Inactive.Contains(a.Status))
             .Select(a => a.Time).ToListAsync();
 
-    private static async Task AssertSlot(AppDb db, string date, string time, string? excludeId = null)
+    private static async Task AssertSlot(AppDb db, string date, string time, string? excludeId = null, int durationMin = 0)
     {
         var settings = await SettingsRepo.GetAsync(db);
         if (!Scheduling.IsOpenDay(settings, date)) throw ApiError.BadRequest("Ese día no atendemos. Elige otra fecha.");
         if (IsPast(date, time)) throw ApiError.BadRequest("Ese horario ya pasó.");
+        if (Scheduling.SlotsForDate(settings, date).Contains(time) && !Scheduling.SlotsForDate(settings, date, durationMin).Contains(time))
+            throw ApiError.BadRequest($"La cita terminaría después del cierre ({Scheduling.ClosingTime(settings, date)}). Elige un horario más temprano.");
         if (!Scheduling.SlotsForDate(settings, date).Contains(time) || (await BusyTimes(db, date, excludeId)).Contains(time))
             throw new ApiError(409, "Ese horario acaba de ser reservado. Elige otro.");
     }
@@ -116,11 +119,11 @@ public static class AppointmentEndpoints
         await BookingLock.WaitAsync();
         try
         {
-            await AssertSlot(db, date, time);
             var user = await db.Users.FindAsync(userId);
             var pet = await db.Pets.FindAsync(petId);
             var service = await db.Services.FindAsync(serviceId);
             if (user is null || pet is null || service is null) throw ApiError.BadRequest("Datos de la reserva incompletos.");
+            await AssertSlot(db, date, time, durationMin: Scheduling.DurationOf(service));
             if (pet.OwnerId != userId) throw ApiError.BadRequest("La mascota no pertenece a este cliente.");
             if (!byAdmin && (!service.Active || !service.Bookable)) throw ApiError.BadRequest("Este servicio no se reserva en línea.");
 

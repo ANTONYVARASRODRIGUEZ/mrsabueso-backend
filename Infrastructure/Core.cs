@@ -57,12 +57,17 @@ public static class Scheduling
     public static int DurationOf(Service? s) => s is { DurationMin: > 0 } ? s.DurationMin : 30;
     public static string EndOf(string time, int minutes) => FromMinutes(Minutes(time) + minutes);
 
-    public static List<string> SlotsForDate(BusinessSettings s, string iso)
+    /// <summary>Horarios del día dentro del horario de atención; con <paramref name="durationMin"/>, solo los que terminan antes del cierre.</summary>
+    public static List<string> SlotsForDate(BusinessSettings s, string iso, int durationMin = 0)
     {
         if (!IsOpenDay(s, iso)) return [];
         var h = s.Hours.First(x => x.Day == (int)DateOnly.ParseExact(iso, "yyyy-MM-dd").DayOfWeek);
-        return s.Slots.Where(x => string.CompareOrdinal(x, h.From) >= 0 && string.CompareOrdinal(x, h.To) < 0).Order(StringComparer.Ordinal).ToList();
+        return s.Slots.Where(x => string.CompareOrdinal(x, h.From) >= 0 && string.CompareOrdinal(x, h.To) < 0 && Minutes(x) + durationMin <= Minutes(h.To))
+            .Order(StringComparer.Ordinal).ToList();
     }
+
+    public static string? ClosingTime(BusinessSettings s, string iso) =>
+        IsOpenDay(s, iso) ? s.Hours.First(x => x.Day == (int)DateOnly.ParseExact(iso, "yyyy-MM-dd").DayOfWeek).To : null;
 }
 
 public static class SettingsRepo
