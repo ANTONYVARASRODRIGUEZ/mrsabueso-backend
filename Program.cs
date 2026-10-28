@@ -21,6 +21,8 @@ var jwt = cfg.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
 if (jwt.Key.Length < 32) throw new InvalidOperationException("Jwt:Key debe tener al menos 32 caracteres.");
 builder.Services.AddSingleton(jwt);
 builder.Services.AddSingleton<TokenService>();
+builder.Services.AddHttpClient();
+builder.Services.AddHostedService<KeepAlive>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(o =>
 {
