@@ -10,6 +10,9 @@ using MrSabueso.Api.Infrastructure;
 var builder = WebApplication.CreateBuilder(args);
 var cfg = builder.Configuration;
 
+// Render (y otros hosts) indican el puerto en la variable PORT.
+if (Environment.GetEnvironmentVariable("PORT") is { Length: > 0 } port) builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+
 var conn = cfg.GetConnectionString("Default") ?? throw new InvalidOperationException("Falta ConnectionStrings:Default.");
 builder.Services.AddDbContext<AppDb>(o => o.UseMySql(conn, new MySqlServerVersion(new Version(8, 0, 36)),
     my => my.EnableRetryOnFailure(3)));
