@@ -14,6 +14,10 @@ var cfg = builder.Configuration;
 if (Environment.GetEnvironmentVariable("PORT") is { Length: > 0 } port) builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 var conn = cfg.GetConnectionString("Default") ?? throw new InvalidOperationException("Falta ConnectionStrings:Default.");
+// El MySQL gratis de Clever Cloud admite solo 5 conexiones: se limita el pool (configurable en la cadena).
+var csb = new MySqlConnector.MySqlConnectionStringBuilder(conn);
+if (!conn.Contains("Pool Size", StringComparison.OrdinalIgnoreCase)) { csb.MaximumPoolSize = 3; csb.ConnectionIdleTimeout = 60; }
+conn = csb.ConnectionString;
 builder.Services.AddDbContext<AppDb>(o => o.UseMySql(conn, new MySqlServerVersion(new Version(8, 0, 36)),
     my => my.EnableRetryOnFailure(3)));
 

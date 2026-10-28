@@ -49,6 +49,14 @@ public static class Scheduling
         return s.Hours.FirstOrDefault(h => h.Day == (int)d.DayOfWeek)?.Open ?? false;
     }
 
+    public static int Minutes(string hhmm) => int.Parse(hhmm[..2]) * 60 + int.Parse(hhmm[3..5]);
+    public static string FromMinutes(int m) { m = Math.Clamp(m, 0, 23 * 60 + 59); return $"{m / 60:00}:{m % 60:00}"; }
+    public static bool IsHhmm(string? s) => s is { Length: 5 } && TimeOnly.TryParseExact(s, "HH:mm", out _);
+
+    /// <summary>Duración por defecto de una cita: la del servicio, o 30 min si no la tiene.</summary>
+    public static int DurationOf(Service? s) => s is { DurationMin: > 0 } ? s.DurationMin : 30;
+    public static string EndOf(string time, int minutes) => FromMinutes(Minutes(time) + minutes);
+
     public static List<string> SlotsForDate(BusinessSettings s, string iso)
     {
         if (!IsOpenDay(s, iso)) return [];

@@ -11,6 +11,7 @@ public record RescheduleInput(string Date, string Time);
 public record StatusInput(string Status);
 public record PaymentInput(string Payment);
 public record NotesInput(string? Notes);
+public record EndTimeInput(string EndTime);
 
 /// <summary>Reemplaza a core/state/appointments.store.ts.</summary>
 public static class AppointmentEndpoints
@@ -60,7 +61,10 @@ public static class AppointmentEndpoints
                 await AssertSlot(db, input.Date, input.Time, id);
                 return await Patch(db, me, id, a =>
                 {
+                    // Se conserva la duración que tenía la cita.
+                    var dur = a.EndTime is { } end && Scheduling.IsHhmm(end) ? Scheduling.Minutes(end) - Scheduling.Minutes(a.Time) : 30;
                     a.Date = input.Date; a.Time = input.Time; a.RescheduleCount++;
+                    a.EndTime = Scheduling.EndOf(input.Time, Math.Max(dur, 5));
                     if (!me.IsAdmin()) a.Status = "pending";
                 }, ownerAllowed: true);
             }
@@ -77,6 +81,14 @@ public static class AppointmentEndpoints
 
         g.MapPatch("/{id}/notes", (string id, NotesInput input, ClaimsPrincipal me, AppDb db) =>
             Patch(db, me, id, a => a.Notes = Text.Clean(input.Notes))).RequireAuthorization("admin");
+
+        g.MapPatch("/{id}/end-time", (string id, EndTimeInput input, ClaimsPrincipal me, AppDb db) =>
+            Patch(db, me, id, a =>
+            {
+                if (!Scheduling.IsHhmm(input.EndTime) || Scheduling.Minutes(input.EndTime) <= Scheduling.Minutes(a.Time))
+                    throw ApiError.BadRequest("La hora de fin debe ser posterior a la hora de inicio.");
+                a.EndTime = input.EndTime;
+            })).RequireAuthorization("admin");
 
         g.MapPost("/{id}/reminder", (string id, ClaimsPrincipal me, AppDb db) =>
             Patch(db, me, id, a => a.ReminderSentAt = DateTime.UtcNow)).RequireAuthorization("admin");
@@ -118,7 +130,7 @@ public static class AppointmentEndpoints
             {
                 Id = Ids.New("apt"), Code = $"#75-{seq}", UserId = userId, CustomerName = user.FullName, CustomerPhone = user.Phone,
                 PetId = pet.Id, PetName = $"{pet.Name} ({pet.Breed})", ServiceId = service.Id, ServiceName = service.Name, Price = service.PriceFrom,
-                Date = date, Time = time, Status = status, Payment = "pending", Notes = Text.Clean(notes), CreatedAt = DateTime.UtcNow,
+                Date = date, Time = time, EndTime = Scheduling.EndOf(time, Scheduling.DurationOf(service)), Status = status, Payment = "pending", Notes = Text.Clean(notes), CreatedAt = DateTime.UtcNow,
             };
             db.Appointments.Add(created);
             await db.SaveChangesAsync();

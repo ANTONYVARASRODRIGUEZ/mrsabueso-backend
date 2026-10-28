@@ -37,9 +37,26 @@ public static class Seeder
             Icon = "bag", DurationMin = 0, Bookable = false, Image = "images/services/petshop.jpg" },
     ];
 
+    /// <summary>Cambios de esquema sobre tablas ya creadas (EnsureCreated no altera tablas existentes).</summary>
+    private static async Task MigrateAsync(AppDb db)
+    {
+        var hasEndTime = await db.Database.SqlQueryRaw<int>(
+            "SELECT COUNT(*) AS Value FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'Appointments' AND COLUMN_NAME = 'EndTime'")
+            .SingleAsync() > 0;
+        if (!hasEndTime) await db.Database.ExecuteSqlRawAsync("ALTER TABLE Appointments ADD COLUMN EndTime longtext NULL");
+
+        // Citas antiguas sin hora de fin: inicio + duración del servicio.
+        var missing = await db.Appointments.Where(a => a.EndTime == null).ToListAsync();
+        if (missing.Count == 0) return;
+        var services = await db.Services.ToDictionaryAsync(s => s.Id);
+        foreach (var a in missing) a.EndTime = Scheduling.EndOf(a.Time, Scheduling.DurationOf(services.GetValueOrDefault(a.ServiceId)));
+        await db.SaveChangesAsync();
+    }
+
     public static async Task RunAsync(AppDb db, IConfiguration cfg)
     {
         await db.Database.EnsureCreatedAsync();
+        await MigrateAsync(db);
 
         if (!await db.Services.AnyAsync()) db.Services.AddRange(DefaultServices());
         if (await db.Settings.FindAsync(1) is null) await SettingsRepo.SaveAsync(db, DefaultSettings);

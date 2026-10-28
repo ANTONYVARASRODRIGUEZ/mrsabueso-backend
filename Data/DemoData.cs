@@ -86,7 +86,7 @@ public static class DemoData
             appts.Add(new Appointment
             {
                 Id = $"apt-d{++seq}", Code = $"#75-{seq}", UserId = u.Id, CustomerName = u.FullName, CustomerPhone = u.Phone, PetId = pet.Id,
-                PetName = $"{pet.Name} ({pet.Breed})", ServiceId = svc.Id, ServiceName = svc.Name, Price = svc.PriceFrom, Date = date, Time = time,
+                PetName = $"{pet.Name} ({pet.Breed})", ServiceId = svc.Id, ServiceName = svc.Name, Price = svc.PriceFrom, Date = date, Time = time, EndTime = Scheduling.EndOf(time, Scheduling.DurationOf(svc)),
                 Status = status, Payment = paid ? "paid" : "pending",
                 CreatedAt = DateTime.SpecifyKind(DateTime.Parse(date).AddDays(-3).AddHours(17), DateTimeKind.Utc),
             });

@@ -58,6 +58,8 @@ public class Appointment
     public decimal? Price { get; set; }
     public string Date { get; set; } = "";
     public string Time { get; set; } = "";
+    /// <summary>Hora de fin HH:mm (inicio + duración del servicio; el administrador puede ajustarla).</summary>
+    public string? EndTime { get; set; }
     public string Status { get; set; } = "pending";
     public string Payment { get; set; } = "pending";
     public string? Notes { get; set; }
