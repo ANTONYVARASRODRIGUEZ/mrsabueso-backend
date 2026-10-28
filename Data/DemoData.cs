@@ -40,6 +40,19 @@ public static class DemoData
 
     private static readonly string[] Vets = ["Dra. Camila Vargas", "Dr. Andrés Rojas"];
 
+    /// <summary>Foto de ejemplo de una mascota demo (frontend/public/images/pets/{nombre}.jpg).</summary>
+    public static string PhotoOf(string name) => $"/images/pets/{name.ToLowerInvariant()}.jpg";
+
+    /// <summary>Pone la foto de ejemplo a las mascotas demo que aún no tienen una (bases ya sembradas antes).</summary>
+    public static async Task FillPhotosAsync(AppDb db)
+    {
+        var names = PetList.Select(p => p.Name).Append("Boby").Append("Mimi").ToHashSet();
+        var ids = Enumerable.Range(1, PetList.Length + 2).Select(i => $"pet-{i}").ToList();
+        var pets = await db.Pets.Where(p => ids.Contains(p.Id) && p.PhotoUrl == null).ToListAsync();
+        foreach (var p in pets.Where(p => names.Contains(p.Name))) p.PhotoUrl = PhotoOf(p.Name);
+        await db.SaveChangesAsync();
+    }
+
     public static async Task RunAsync(AppDb db)
     {
         if (await db.Users.CountAsync(u => u.Role == "client") > 2) return;
@@ -66,7 +79,7 @@ public static class DemoData
         // Mascotas
         var pets = PetList.Select((p, i) => new Pet
         {
-            Id = $"pet-{i + 3}", OwnerId = users[i % users.Count].Id, Name = p.Name, Species = p.Species, Breed = p.Breed, Sex = p.Sex,
+            Id = $"pet-{i + 3}", OwnerId = users[i % users.Count].Id, Name = p.Name, Species = p.Species, Breed = p.Breed, Sex = p.Sex, PhotoUrl = PhotoOf(p.Name),
             BirthDate = Iso(today.AddDays(-(400 + i * 170))),
         }).ToList();
         db.Pets.AddRange(pets);

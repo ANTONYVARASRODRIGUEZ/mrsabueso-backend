@@ -79,8 +79,8 @@ public static class Seeder
                 ConsentAt = DateTime.UtcNow, ConsentSource = "web", PasswordHash = BCrypt.Net.BCrypt.HashPassword("Demo1234"),
             });
             db.Pets.AddRange(
-                new Pet { Id = "pet-1", OwnerId = "u-demo", Name = "Boby", Species = "dog", Breed = "Beagle", Sex = "male" },
-                new Pet { Id = "pet-2", OwnerId = "u-demo", Name = "Mimi", Species = "cat", Breed = "Siamés", Sex = "female" });
+                new Pet { Id = "pet-1", OwnerId = "u-demo", Name = "Boby", Species = "dog", Breed = "Beagle", Sex = "male", PhotoUrl = DemoData.PhotoOf("Boby") },
+                new Pet { Id = "pet-2", OwnerId = "u-demo", Name = "Mimi", Species = "cat", Breed = "Siamés", Sex = "female", PhotoUrl = DemoData.PhotoOf("Mimi") });
         }
 
         await db.SaveChangesAsync();
@@ -88,6 +88,7 @@ public static class Seeder
         if (cfg.GetValue<bool>("Seed:DemoData"))
         {
             await DemoData.RunAsync(db);
+            await DemoData.FillPhotosAsync(db);
             // Datos de contacto PROVISIONALES para la vista previa: reemplázalos en Panel → Configuración.
             var s = await SettingsRepo.GetAsync(db);
             if (s.Address == "" && s.Email == "")
