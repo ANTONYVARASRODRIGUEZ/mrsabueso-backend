@@ -26,6 +26,8 @@ if (jwt.Key.Length < 32) throw new InvalidOperationException("Jwt:Key debe tener
 builder.Services.AddSingleton(jwt);
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddHttpClient();
+builder.Services.AddSingleton(cfg.GetSection("Brevo").Get<BrevoOptions>() ?? new BrevoOptions());
+builder.Services.AddSingleton<EmailService>();
 builder.Services.AddHostedService<KeepAlive>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(o =>
